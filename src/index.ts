@@ -11,7 +11,7 @@ import { userMiddleware } from "./middleware";
 const app = express();
 app.use(express.json());
 
-import { ContentModel, UserModel } from "./db";
+import { ContentModel, LinkModel, UserModel } from "./db";
 
 const requiredSchema = z
   .object({
@@ -145,29 +145,105 @@ app.get("/api/v1/content", userMiddleware, async function (req, res) {
 });
 
 //Delete-content
-app.delete("/api/v1/content",userMiddleware, async function (req, res) {
-    const contentId=req.body.contentId;
-    const userId=req.userId
-    try{
-        const result =await ContentModel.deleteOne({
-            _id:contentId,
-            userId
-        })
-        if (result.deletedCount === 0) {
-            res.status(404).json({ message: "No matching content found to delete" });
-            return ;
-        }
-        res.status(200).json({messgae:"Content deleted"})
-    }catch(err){
-        res.status(403).json({message:"Can't delete content" , error:err})
+app.delete("/api/v1/content", userMiddleware, async function (req, res) {
+  const contentId = req.body.contentId;
+  const userId = req.userId;
+  try {
+    const result = await ContentModel.deleteOne({
+      _id: contentId,
+      userId,
+    });
+    if (result.deletedCount === 0) {
+      res.status(404).json({ message: "No matching content found to delete" });
+      return;
     }
+    res.status(200).json({ messgae: "Content deleted" });
+  } catch (err) {
+    res.status(403).json({ message: "Can't delete content", error: err });
+  }
 });
 
 //Share-link
-app.post("/api/v1/brain/share", function (req, res) {});
+import { v4 as uuidv4 } from "uuid";
+app.post("/api/v1/brain/share", userMiddleware, async function (req, res) {
+  const userId = req.userId;
+  const share = req.body.share;
+  const user = await UserModel.findById(userId);
+  if (!user) {
+    res.status(403).json({ message: "User not found" });
+    return;
+  }
+  if (share) {
+    try {
+      user.isShareEnable = true;
+      await user.save();
+      let link = await LinkModel.findOne({ userId });
+      if (!link) {
+        const hash = uuidv4();
+        link = await LinkModel.create({ hash, userId });
+      }
+      res.status(200).json({
+        message: "Sharing enabled",
+        link: `brainvault.com/sharebrain/${link.hash}`,
+      });
+      return;
+    } catch (err) {
+      res
+        .status(403)
+        .json({ message: "can't create sharable link", error: err });
+    }
+  } else {
+    try {
+      user.isShareEnable = false;
+      await user.save();
+      await LinkModel.findOneAndDelete({ userId });
+      res.status(200).json({
+        message: "Link successfully disabled",
+      });
+      return;
+    } catch (err) {
+      res
+        .status(403)
+        .json({ message: "can't disable sharable link", error: err });
+    }
+  }
+});
 
 //Get-link
-app.post("/api/v1/brain/:shareLink", function (req, res) {});
+app.get("/sharebrain/:shareLink", async function (req, res) {
+  const { shareLink } = req.params;
+  try {
+    const hash = shareLink;
+    let link = await LinkModel.findOne({ hash });
+    if (!link) {
+      res.status(403).json({ message: "invalid link" });
+      return;
+    }
+    const user = await UserModel.findById(link.userId);
+    if (!user || !user.isShareEnable) {
+      res.status(403).json({ message: "This user has not enabled sharing" });
+      return;
+    }
+    const contents = await ContentModel.find({ userId: user._id });
+
+    const formattedContent = contents.map((item, index) => ({
+      id: index + 1,
+      type: item.type,
+      link: item.link,
+      title: item.title,
+      tags: item.tag,
+    }));
+
+    res.status(200).json({
+      username: user.username,
+      content: formattedContent,
+    });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Failed to fetch shared content", error: err });
+  }
+});
 
 const Mongo_Url = process.env.MONGO_URL as string;
 const PORT = 3000;
@@ -180,6 +256,5 @@ async function main() {
     process.exit(1);
   }
 }
-
 
 main();

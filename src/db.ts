@@ -3,25 +3,26 @@ const Schema = mongoose.Schema;
 const objectId = Schema.Types.ObjectId;
 
 const User = new Schema({
-  username: { type: String, require: true, unique: true },
-  password: String,
+  username: { type: String, required: true, unique: true },
+  password:{ type: String, required: true},
+  isShareEnable:{type:Boolean, default:false}
 });
 
 const Link = new Schema({
-  hash: { type: String, require: true },
-  userId: { type: objectId, require: true, ref: "users" },
+  hash: { type: String, required: true },
+  userId: { type: objectId, required: true, ref: "users" },
 });
 
 const Tag = new Schema({
-  title: { type: String, require: true },
+  title: { type: String, required: true },
 });
 
 const contentTypes = ["image", "video", "article", "audio"]; // Extend as needed
 const Content = new Schema({
-  link: { type: String, require: true },
-  type: { type: String, enum: contentTypes, require: true },
-  title: { type: String, require: true },
-  userId: { type: objectId, ref: "users", require: true },
+  link: { type: String, required: true },
+  type: { type: String, enum: contentTypes, required: true },
+  title: { type: String, required: true },
+  userId: { type: objectId, ref: "users", required: true },
   tag: [{ type: String, ref: "tags" }],
 });
 
