@@ -1,0 +1,1 @@
+{"root":["./src/db.ts","./src/index.ts","./src/middleware.ts","./src/routes/auth.ts","./src/routes/content.ts","./src/routes/groqchat.ts","./src/routes/share.ts","./src/types/express/index.d.ts","./src/utils/embed.ts","./src/utils/groq.ts","./src/utils/pineconeclient.ts"],"version":"5.8.3"}
